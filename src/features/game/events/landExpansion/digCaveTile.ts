@@ -1,0 +1,161 @@
+import Decimal from "decimal.js-light";
+import { produce } from "immer";
+import type { GameState, InventoryItemName } from "features/game/types/game";
+import { hasFeatureAccess } from "lib/flags";
+import { isCaveBuildingReady } from "features/game/lib/cave";
+import {
+  CAVE_DIG_SHOVEL_COST,
+  caveTileKey,
+  isCaveTileInPatch,
+} from "features/game/types/caveRecipes";
+import {
+  generateCavePatch,
+  isCaveSeed,
+  type ResolvedCaveTile,
+  resolveCaveTile,
+} from "features/game/types/cavePatch";
+import type { MushroomName } from "features/game/types/resources";
+import { updateBoostUsed } from "features/game/types/updateBoostUsed";
+import { getMushroomYield } from "features/game/lib/mushrooms";
+
+export type DigCaveTileAction = {
+  type: "cave.dug";
+  machineId: string;
+  x: number;
+  y: number;
+};
+
+type Options = {
+  state: Readonly<GameState>;
+  action: DigCaveTileAction;
+  createdAt?: number;
+};
+
+export enum DIG_CAVE_TILE_ERRORS {
+  NO_FEATURE_ACCESS = "The Cave is not available for this player",
+  NO_CAVE = "The Cave has not been built",
+  NO_MACHINE = "That Myco Bin does not exist",
+  NO_BATCH = "That Myco Bin has no batch",
+  NOT_READY = "That patch is not ready to dig",
+  NO_SEED = "That patch has no board yet",
+  INVALID_TILE = "That tile is not in the patch",
+  ALREADY_DUG = "That tile has already been dug",
+  NO_SHOVEL = "Missing Sand Shovel",
+}
+
+/**
+ * Mushrooms from one Cave Mushroom tile: the same yield as picking that
+ * mushroom on the island (a Magic Mushroom gets the Bud boost only).
+ */
+export function getCaveMushroomYield({
+  name,
+  game,
+}: {
+  name: MushroomName;
+  game: GameState;
+}) {
+  return getMushroomYield({ name, game });
+}
+
+/**
+ * Adds a dug tile's reward to the inventory. Mushroom yield is worked out at
+ * dig time, so boosts apply to patches that were already growing.
+ */
+export function awardCaveTile({
+  game,
+  tile,
+  createdAt,
+}: {
+  game: GameState;
+  tile: ResolvedCaveTile;
+  createdAt: number;
+}) {
+  let { items } = tile;
+
+  if (tile.type === "Mushroom") {
+    // A Mushroom tile awards exactly one kind: Wild or Magic.
+    const name = Object.keys(items)[0] as MushroomName;
+    const { amount, boostsUsed } = getCaveMushroomYield({ name, game });
+    items = { [name]: amount };
+    game.boostsUsedAt = updateBoostUsed({
+      game,
+      boostNames: boostsUsed,
+      createdAt,
+    });
+  }
+
+  for (const [name, amount] of Object.entries(items)) {
+    const item = name as InventoryItemName;
+    game.inventory[item] = (game.inventory[item] ?? new Decimal(0)).add(
+      amount ?? 0,
+    );
+  }
+}
+
+/**
+ * Dig one Cave patch tile with a Sand Shovel. The tile's reward comes from the
+ * batch's board (`generateCavePatch`), so the FE and BE award the same thing.
+ */
+export function digCaveTile({
+  state,
+  action,
+  createdAt = Date.now(),
+}: Options): GameState {
+  return produce(state, (game) => {
+    if (!hasFeatureAccess(game, "CAVE")) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_FEATURE_ACCESS);
+    }
+
+    const cave = game.cave;
+    if (!cave || !isCaveBuildingReady(game, createdAt)) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_CAVE);
+    }
+
+    const machine = cave.machines[action.machineId];
+    if (!machine) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_MACHINE);
+    }
+
+    const batch = machine.batch;
+    if (!batch) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_BATCH);
+    }
+
+    if (batch.readyAt > createdAt) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NOT_READY);
+    }
+
+    if (!isCaveSeed(batch.seed)) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_SEED);
+    }
+
+    const { x, y } = action;
+    if (!isCaveTileInPatch(x, y)) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.INVALID_TILE);
+    }
+
+    const key = caveTileKey(x, y);
+    if (batch.dug?.[key]) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.ALREADY_DUG);
+    }
+
+    const shovels = game.inventory["Sand Shovel"] ?? new Decimal(0);
+    if (shovels.lt(CAVE_DIG_SHOVEL_COST)) {
+      throw new Error(DIG_CAVE_TILE_ERRORS.NO_SHOVEL);
+    }
+
+    game.inventory["Sand Shovel"] = shovels.minus(CAVE_DIG_SHOVEL_COST);
+
+    const layout = generateCavePatch({
+      recipe: batch.recipe,
+      seed: batch.seed,
+    });
+    awardCaveTile({
+      game,
+      tile: resolveCaveTile(layout, x, y),
+      createdAt,
+    });
+
+    batch.dug = { ...batch.dug, [key]: { dugAt: createdAt } };
+  });
+}
