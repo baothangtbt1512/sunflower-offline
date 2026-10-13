@@ -142,41 +142,19 @@ export const VIPItems: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasLifetimeBanner = useSelector(gameService, _hasLifetimeFarmerBanner);
 
   const handlePurchase = () => {
-    gameService.send("vip.bought", {
-      effect: { type: "vip.bought", bundle: selected },
-      authToken: authService.getSnapshot().context.user.rawToken as string,
-    });
-    gameAnalytics.trackSink({
-      currency: "Gem",
-      amount: VIP_PRICES[selected as VipBundle],
-      item: selected as VipBundle,
-      type: "Web3",
-    });
+    if (selected) {
+      const VIP_DURATIONS: Record<VipBundle, number> = {
+        "1_MONTH": 30 * 24 * 60 * 60 * 1000,
+        "3_MONTHS": 90 * 24 * 60 * 60 * 1000,
+        "2_YEARS": 730 * 24 * 60 * 60 * 1000,
+      };
 
-    const isFirstVip = !vip?.bundles?.length;
-    const boughtStarterPack = !!state.farmActivity["Starter Pack Purchased"];
-
-    if (isFirstVip && boughtStarterPack) {
-      gameAnalytics.trackMilestone({
-        event: "VIP:Conversion:StarterPack",
+      gameService.send("UPDATE_GEMS", {
+        vip: {
+          bundle: selected,
+          durationMs: VIP_DURATIONS[selected],
+        },
       });
-    }
-
-    if (isFirstVip) {
-      const DAY_MS = 24 * 60 * 60 * 1000;
-      const accountAgeMs = Date.now() - state.createdAt;
-      const sevenDaysMs = 7 * DAY_MS;
-
-      if (accountAgeMs < sevenDaysMs) {
-        const dayBucket = Math.min(
-          6,
-          Math.max(0, Math.floor(accountAgeMs / DAY_MS)),
-        );
-        const tag = boughtStarterPack ? "HasStarterPack" : "NoStarterPack";
-        gameAnalytics.trackMilestone({
-          event: `VIP:Conversion:NewUser:Day${dayBucket}:${tag}`,
-        });
-      }
     }
 
     setSelected(undefined);
@@ -206,11 +184,7 @@ export const VIPItems: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
             <Label
               icon={ITEM_DETAILS.Gem.image}
-              type={
-                gemBalance.lt(VIP_PRICES[selected as VipBundle] ?? 0)
-                  ? "danger"
-                  : "warning"
-              }
+              type="warning"
               className="mb-2"
             >
               {VIP_PRICES[selected as VipBundle]}
@@ -235,11 +209,7 @@ export const VIPItems: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               {t("no")}
             </Button>
             <Button
-              disabled={
-                hasOneYear ||
-                hasLifetimeBanner ||
-                gemBalance.lt(VIP_PRICES[selected as VipBundle] ?? 0)
-              }
+              disabled={hasOneYear || hasLifetimeBanner}
               onClick={handlePurchase}
             >
               {t("yes")}

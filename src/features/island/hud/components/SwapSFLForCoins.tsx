@@ -36,16 +36,16 @@ export const SwapSFLForCoins: React.FC<{ onClose: () => void }> = ({
   >(undefined);
 
   const handleSFLtoCoinsExchange = (packageId: number) => {
-    gameService.send("sfl.exchanged", { packageId });
+    const pkg = SFL_TO_COIN_PACKAGES[Number(packageId)];
+    gameService.send("UPDATE_GEMS", {
+      coins: pkg.coins,
+      sfl: pkg.sfl,
+    });
     setExchangePackageId(undefined);
     onClose();
   };
 
-  const enoughSfl =
-    !!exchangePackageId &&
-    balance.greaterThanOrEqualTo(
-      SFL_TO_COIN_PACKAGES[Number(exchangePackageId)].sfl,
-    );
+  const enoughSfl = true;
 
   return (
     <>

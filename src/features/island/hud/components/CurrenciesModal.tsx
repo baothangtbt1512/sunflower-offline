@@ -150,13 +150,14 @@ export const CurrenciesModal: React.FC<Props> = ({
     quote: number,
     bundle: number | typeof STARTER_PACK,
   ) => {
-    gameService.send("gems.bought", {
-      effect: {
-        type: "gems.bought",
-        quote,
-        bundle,
-      },
-      authToken: token,
+    const isStarterPack = bundle === STARTER_PACK;
+    gameService.send("UPDATE_GEMS", {
+      amount: isStarterPack
+        ? STARTER_PACK_GEMS
+        : typeof bundle === "number"
+          ? bundle
+          : 0,
+      ...(isStarterPack ? { coins: STARTER_PACK_COINS } : {}),
     });
 
     onClose();
@@ -170,24 +171,7 @@ export const CurrenciesModal: React.FC<Props> = ({
   };
 
   const handleCreditCardBuy = async () => {
-    setLoading(true);
-    try {
-      const amount = price?.amount ?? 0;
-
-      const { url } = await buyGemsXsolla({
-        amount: amount as number,
-        farmId,
-        transactionId: randomID(),
-        token,
-      });
-
-      setShowXsolla(url);
-      setLoading(false);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
-      setLoading(false);
-    }
+    handleCreditCardSuccess();
   };
 
   const handleCreditCardSuccess = () => {

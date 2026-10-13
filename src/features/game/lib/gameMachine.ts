@@ -294,9 +294,11 @@ type BuyBlockBucksEvent = {
 
 type UpdateBlockBucksEvent = {
   type: "UPDATE_GEMS";
-  amount: number;
-  /** Coins to add (e.g. from Xsolla starter pack) */
+  amount?: number;
+  /** Coins to add (e.g. from starter pack) */
   coins?: number;
+  sfl?: number;
+  vip?: { bundle: any; durationMs: number };
 };
 
 type LandscapeEvent = {
@@ -2064,31 +2066,53 @@ export function startGame(authContext: AuthContext) {
             },
             SELL_MARKET_RESOURCE: { target: "sellMarketResource" },
             UPDATE_GEMS: {
-              actions: assign((context, event) => ({
-                state: {
-                  ...context.state,
-                  inventory: {
-                    ...context.state.inventory,
-                    Gem: (context.state.inventory["Gem"] ?? new Decimal(0)).add(
-                      event.amount,
-                    ),
+              actions: assign((context, event) => {
+                const updatedInventory = { ...context.state.inventory };
+                if (event.amount && event.amount > 0) {
+                  updatedInventory["Gem"] = (
+                    updatedInventory["Gem"] ?? new Decimal(0)
+                  ).add(event.amount);
+                }
+                const updatedCoins =
+                  (context.state.coins ?? 0) + (event.coins ?? 0);
+                const updatedBalance = event.sfl
+                  ? (context.state.balance ?? new Decimal(0)).add(event.sfl)
+                  : context.state.balance;
+
+                let updatedVip = context.state.vip;
+                if (event.vip) {
+                  const now = Date.now();
+                  const currentExpires = updatedVip?.expiresAt ?? now;
+                  const newExpires =
+                    Math.max(currentExpires, now) + event.vip.durationMs;
+                  updatedVip = {
+                    bundles: [
+                      ...(updatedVip?.bundles ?? []),
+                      { name: event.vip.bundle, boughtAt: now },
+                    ],
+                    expiresAt: newExpires,
+                  };
+                }
+
+                return {
+                  state: {
+                    ...context.state,
+                    inventory: updatedInventory,
+                    coins: updatedCoins,
+                    balance: updatedBalance,
+                    ...(updatedVip ? { vip: updatedVip } : {}),
                   },
-                  ...(event.coins != null && event.coins > 0
-                    ? {
-                        coins: (context.state.coins ?? 0) + event.coins,
-                      }
-                    : {}),
-                },
-                purchases: [
-                  ...context.purchases,
-                  {
-                    id: "Gem",
-                    method: "XSOLLA",
-                    purchasedAt: Date.now(),
-                    usd: 1, // Placeholder
-                  } as Purchase,
-                ],
-              })),
+                  purchases: [
+                    ...context.purchases,
+                    {
+                      id: "Gem",
+                      method: "XSOLLA",
+                      purchasedAt: Date.now(),
+                      usd: 0,
+                    } as Purchase,
+                  ],
+                };
+              }),
             },
             UPDATE: {
               actions: assign((_, event) => ({

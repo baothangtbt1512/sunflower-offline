@@ -270,11 +270,7 @@ export const BuyGems: React.FC<Props> = ({
         ? new Decimal(flowerUSD / flowerPrice).toFixed(4)
         : "0.0000";
 
-    const hasFlower = gameService
-      .getSnapshot()
-      .context.state.balance.gte(flowerQuote);
-
-    const canConfirm = inRange && flowerPrice > 0 && hasFlower;
+    const canConfirm = inRange;
 
     // Nudge the player towards the next bundle. The FLOWER discount is a flat
     // multiplier, so we compare pre-discount USD (the inequality is identical).
@@ -368,14 +364,9 @@ export const BuyGems: React.FC<Props> = ({
             </Button>
             <Button
               disabled={!canConfirm}
-              onClick={() => onFlowerBuy(Number(flowerQuote), amount)}
+              onClick={() => onFlowerBuy(0, amount)}
               className="relative"
             >
-              {inRange && flowerPrice > 0 && !hasFlower && (
-                <Label type="danger" className="absolute -top-4 right-0">
-                  {t("error.insufficientFlower")}
-                </Label>
-              )}
               {t("confirm")}
             </Button>
           </div>
@@ -523,11 +514,6 @@ export const BuyGems: React.FC<Props> = ({
           }}
           className="relative mt-0"
         >
-          {inRange && flowerPrice > 0 && !hasFlower && (
-            <Label type="danger" className="absolute -top-4 right-0">
-              {t("error.insufficientFlower")}
-            </Label>
-          )}
           {t("confirm")}
         </Button>
       </>
@@ -633,13 +619,13 @@ export const BuyGems: React.FC<Props> = ({
                       width: `calc(100% + ${PIXEL_SCALE * 6}px)`,
                     }}
                   >
-                    {t("transaction.payCash")}
+                    {t("free") ?? "Miễn phí"}
                   </Label>
                 </ButtonPanel>
               </>
             )}
             <ButtonPanel
-              onClick={() => setShowFlowerConfirm(true)}
+              onClick={() => onFlowerBuy(0, price.amount)}
               className="flex relative flex-col flex-1 items-center p-2 cursor-pointer"
             >
               <span className="mb-2 text-xs">{"FLOWER"}</span>
@@ -655,7 +641,7 @@ export const BuyGems: React.FC<Props> = ({
                   width: `calc(100% + ${PIXEL_SCALE * 6}px)`,
                 }}
               >
-                {t("transaction.payFlower")}
+                {t("free") ?? "Miễn phí"}
               </Label>
             </ButtonPanel>
           </div>
@@ -703,10 +689,8 @@ export const BuyGems: React.FC<Props> = ({
       <div className="flex flex-col w-full p-1">
         {canShowStarterOffer && (
           <ButtonPanel
-            onClick={() =>
-              setPrice({ amount: STARTER_PACK, usd: STARTER_PACK_USD })
-            }
-            className="w-full mb-1"
+            onClick={() => onFlowerBuy(0, STARTER_PACK)}
+            className="w-full mb-1 cursor-pointer hover:bg-brown-300"
           >
             <div className="flex justify-between items-center">
               <Label type="vibrant">{t("transaction.starterOffer")}</Label>
@@ -733,7 +717,7 @@ export const BuyGems: React.FC<Props> = ({
               </div>
               <div className="flex flex-col justify-end flex-1 items-end">
                 <span className="text-sm mb-0.5 line-through">{`$4.49`}</span>
-                <Label type="warning">{`US$${STARTER_PACK_USD}`}</Label>
+                <Label type="warning">{t("free") ?? "Miễn phí"}</Label>
               </div>
             </div>
           </ButtonPanel>
@@ -752,7 +736,7 @@ export const BuyGems: React.FC<Props> = ({
               <ButtonPanel
                 key={JSON.stringify(price)}
                 className="flex flex-col items-center relative cursor-pointer hover:bg-brown-300"
-                onClick={() => setPrice(price)}
+                onClick={() => onFlowerBuy(0, price.amount)}
               >
                 {!!bonus && (
                   <Label type="success" className="absolute -right-2 -top-4">
@@ -787,7 +771,7 @@ export const BuyGems: React.FC<Props> = ({
                     width: `calc(100% + ${PIXEL_SCALE * 6}px)`,
                   }}
                 >
-                  {`US$${price.usd}`}
+                  {t("free") ?? "Miễn phí"}
                 </Label>
               </ButtonPanel>
             );
