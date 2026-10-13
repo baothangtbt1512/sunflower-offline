@@ -48,6 +48,10 @@ const fetchLatestReleaseVersion = async (): Promise<string | undefined> => {
 };
 
 export const VersionUpdateWidget: React.FC = () => {
+  return null;
+};
+
+const _unused_VersionUpdateWidget: React.FC = () => {
   const [isUpdateReady, setIsUpdateReady] = useState(false);
   const { t } = useAppTranslation();
   const checkingRef = useRef(false);

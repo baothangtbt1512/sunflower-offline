@@ -9,6 +9,7 @@ import ITALIAN_TERMS from "./it.json";
 import SPANISH_TERMS from "./es.json";
 import GERMAN_TERMS from "./de.json";
 import JAPANESE_TERMS from "./ja.json";
+import VIETNAMESE_TERMS from "./vi.json";
 import type { TranslationKeys } from "./types";
 
 import britishFlag from "assets/sfts/flags/british_flag.webp";
@@ -24,6 +25,7 @@ import italyFlag from "assets/sfts/flags/italy_flag.webp";
 import germanFlag from "assets/sfts/flags/germany_flag.webp";
 import indonesiaFlag from "assets/sfts/flags/indonesia_flag.webp";
 import japaneseFlag from "assets/sfts/flags/japan_flag.webp";
+import vietnamFlag from "assets/sfts/flags/vietnam_flag.webp";
 
 export type LanguageCode =
   | "en"
@@ -36,7 +38,8 @@ export type LanguageCode =
   | "tr"
   | "zh-CN"
   | "ru"
-  | "it";
+  | "it"
+  | "vi";
 
 export type TranslationResource = Partial<Record<TranslationKeys, string>>;
 
@@ -102,6 +105,11 @@ export const LANGUAGE_DETAILS: Record<LanguageCode, LanguageDetails> = {
     languageImage: [chinaFlag],
     imageAlt: ["China Flag"],
   },
+  vi: {
+    languageName: "Tiếng Việt",
+    languageImage: [vietnamFlag],
+    imageAlt: ["Vietnam Flag"],
+  },
 };
 
 export const resources: Partial<
@@ -118,4 +126,5 @@ export const resources: Partial<
   ru: { translation: RUSSIAN_TERMS },
   tr: { translation: TURKISH_TERMS },
   "zh-CN": { translation: CHINESE_SIMPLIFIED_TERMS },
+  vi: { translation: VIETNAMESE_TERMS },
 };

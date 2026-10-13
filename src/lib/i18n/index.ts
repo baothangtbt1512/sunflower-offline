@@ -5,9 +5,9 @@ import { getKeys } from "lib/object";
 
 if (process.env.NODE_ENV !== "metadata") {
   let lng: LanguageCode =
-    (localStorage.getItem("language") as LanguageCode) || "en";
+    (localStorage.getItem("language") as LanguageCode) || "vi";
   if (!getKeys(resources).includes(lng)) {
-    lng = "en";
+    lng = "vi";
     localStorage.setItem("language", lng);
   }
 
